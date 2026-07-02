@@ -84,6 +84,8 @@
     display: none;
   }
   #showall.visible { display: block; }
+  #safety-note { display: none; font-size: 12px; color: #777; margin-top: 8px; }
+  #safety-note.visible { display: block; }
   .legend { margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--border); }
   .legend div { display: flex; align-items: center; gap: 10px; font-size: 12.5px; color: #555; padding: 3px 0; }
   .legend .swatch { flex: 0 0 22px; height: 0; }
@@ -134,6 +136,7 @@
     <h2 data-i18n="routesHeading"></h2>
     <div id="route-list"></div>
     <button id="showall" data-i18n="showAll"></button>
+    <p id="safety-note" data-i18n="safetyNote"></p>
     <div class="legend">
       <h2 data-i18n="legendHeading"></h2>
       <div><span class="swatch oasis"></span><span data-i18n="legendOasis"></span></div>
@@ -158,6 +161,11 @@ const I18N = {
     legendShared: 'Pedestrian priority pathway (car-free)',
     legendLane: 'On-street bike lane',
     showAll: 'Show all routes',
+    safetyNote: 'Line thickness shows how protected each section is: thick = car-free, thin = shared with car traffic.',
+    carFree: 'car-free',
+    sectionCarfree: 'Car-free section',
+    sectionLane: 'On-street bike lane section',
+    sectionRoad: 'Section shared with car traffic',
     minutes: 'min',
     pace: 'at a relaxed pace',
     langButton: 'FR',
@@ -176,6 +184,11 @@ const I18N = {
     legendShared: 'Sentier à priorité piétonne (sans voitures)',
     legendLane: 'Bande cyclable sur rue',
     showAll: 'Afficher tous les trajets',
+    safetyNote: 'L’épaisseur du trait indique le niveau de protection de chaque section : épais = sans voitures, mince = partagé avec la circulation automobile.',
+    carFree: 'sans voitures',
+    sectionCarfree: 'Section sans voitures',
+    sectionLane: 'Section sur bande cyclable',
+    sectionRoad: 'Section partagée avec les voitures',
     minutes: 'min',
     pace: 'à un rythme détendu',
     langButton: 'EN',
@@ -249,6 +262,9 @@ function addOverlay() {
 
 function applySelection() {
   if (!map.getLayer('commuter-line')) return;
+  // Selected route: thickness encodes protection from car traffic.
+  const safetyWidth = ['match', ['get', 'safety'], 'carfree', 6, 'lane', 3, 2];
+  const safetyCasing = ['match', ['get', 'safety'], 'carfree', 9, 'lane', 6, 5];
   const dim = selectedId
     ? ['case', ['==', ['get', 'id'], selectedId], 0.95, 0.12]
     : 0.95;
@@ -256,19 +272,26 @@ function applySelection() {
     ? ['case', ['==', ['get', 'id'], selectedId], 0.85, 0.06]
     : 0.85;
   const width = selectedId
-    ? ['case', ['==', ['get', 'id'], selectedId], 6, 3]
+    ? ['case', ['==', ['get', 'id'], selectedId], safetyWidth, 3]
     : 4.5;
+  const casingWidth = selectedId
+    ? ['case', ['==', ['get', 'id'], selectedId], safetyCasing, 6]
+    : 8;
   map.setPaintProperty('commuter-line', 'line-opacity', dim);
   map.setPaintProperty('commuter-line', 'line-width', width);
   map.setPaintProperty('commuter-casing', 'line-opacity', dimCasing);
+  map.setPaintProperty('commuter-casing', 'line-width', casingWidth);
   document.querySelectorAll('.route').forEach(el =>
     el.classList.toggle('active', el.dataset.id === selectedId));
   document.getElementById('showall').classList.toggle('visible', !!selectedId);
+  document.getElementById('safety-note').classList.toggle('visible', !!selectedId);
 }
 
-function featureBounds(feature) {
+function boundsForId(id) {
   const b = new maplibregl.LngLatBounds();
-  feature.geometry.coordinates.forEach(c => b.extend(c));
+  routesData.features
+    .filter(f => f.properties.id === id)
+    .forEach(f => f.geometry.coordinates.forEach(c => b.extend(c)));
   return b;
 }
 
@@ -282,8 +305,7 @@ function selectRoute(id) {
   selectedId = (selectedId === id) ? null : id;
   applySelection();
   if (selectedId) {
-    const f = routesData.features.find(f => f.properties.id === selectedId);
-    map.fitBounds(featureBounds(f), { padding: 70, duration: 800 });
+    map.fitBounds(boundsForId(selectedId), { padding: 70, duration: 800 });
   } else {
     map.fitBounds(allBounds(), { padding: 60, duration: 800 });
   }
@@ -293,15 +315,18 @@ function renderRouteList() {
   if (!routesData) return;
   const list = document.getElementById('route-list');
   list.innerHTML = '';
+  const seen = new Set();
   for (const f of routesData.features) {
     const p = f.properties;
+    if (seen.has(p.id)) continue; // routes span multiple safety stretches
+    seen.add(p.id);
     const btn = document.createElement('button');
     btn.className = 'route' + (p.id === selectedId ? ' active' : '');
     btn.dataset.id = p.id;
     btn.innerHTML =
       `<span class="chip" style="background:${p.color}"></span>` +
       `<span><strong>${p['name_' + lang]}</strong><br>` +
-      `<span class="meta">${p.distance_km} km · ~${p.minutes} ${t('minutes')} ${t('pace')}</span></span>`;
+      `<span class="meta">${p.distance_km} km · ~${p.minutes} ${t('minutes')} · ${p.carfree_pct} % ${t('carFree')}</span></span>`;
     btn.addEventListener('click', () => selectRoute(p.id));
     list.appendChild(btn);
   }
@@ -312,12 +337,16 @@ map.on('click', (e) => {
   const hits = map.queryRenderedFeatures(e.point, { layers: ['commuter-line'] });
   if (!hits.length) return;
   const p = hits[0].properties;
+  const sectionLabel = {
+    carfree: t('sectionCarfree'), lane: t('sectionLane'), road: t('sectionRoad'),
+  }[p.safety] || '';
   new maplibregl.Popup({ closeButton: false, maxWidth: '260px' })
     .setLngLat(e.lngLat)
     .setHTML(
       `<strong>${p['name_' + lang]}</strong><br>` +
       `${p['desc_' + lang]}<br>` +
-      `<span style="color:#777">${p.distance_km} km · ~${p.minutes} ${t('minutes')} ${t('pace')}</span>`)
+      `<em>${sectionLabel}</em><br>` +
+      `<span style="color:#777">${p.distance_km} km · ~${p.minutes} ${t('minutes')} ${t('pace')} · ${p.carfree_pct} % ${t('carFree')}</span>`)
     .addTo(map);
 });
 map.on('mousemove', (e) => {

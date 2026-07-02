@@ -7,6 +7,17 @@
  * car-separated cycling infrastructure (the NCC multi-use pathway
  * network), plus a via-point to pin it to the intended corridor.
  *
+ * BRouter's response includes the OSM way tags for every segment. We use
+ * them to classify each stretch by how protected it is from car traffic:
+ *
+ *   carfree — dedicated cycleway, multi-use pathway, or protected track
+ *   lane    — painted on-street bike lane
+ *   road    — shared with car traffic, no bike infrastructure
+ *
+ * Routes are emitted as one Feature per contiguous safety stretch, all
+ * sharing the route's id and display properties. The map scales line
+ * thickness by the `safety` property when a route is selected.
+ *
  * Usage: node tools/fetch-routes.mjs
  */
 import fs from 'node:fs';
@@ -71,6 +82,89 @@ const CORRIDORS = [
   },
 ];
 
+// ---------------------------------------------------------------------------
+// Safety classification from OSM way tags
+// ---------------------------------------------------------------------------
+
+const CAR_FREE_HIGHWAYS = new Set([
+  'cycleway', 'path', 'footway', 'pedestrian', 'track', 'bridleway', 'steps',
+]);
+
+function parseWayTags(str) {
+  const tags = {};
+  for (const kv of String(str || '').split(' ')) {
+    const i = kv.indexOf('=');
+    if (i > 0) tags[kv.slice(0, i)] = kv.slice(i + 1);
+  }
+  return tags;
+}
+
+function classify(wayTagsStr) {
+  const tags = parseWayTags(wayTagsStr);
+  if (CAR_FREE_HIGHWAYS.has(tags.highway)) return 'carfree';
+
+  const cyclewayValues = [
+    tags.cycleway, tags['cycleway:left'], tags['cycleway:right'], tags['cycleway:both'],
+  ].filter(Boolean);
+  if (cyclewayValues.some(v => v === 'track' || v === 'separate')) return 'carfree';
+  if (cyclewayValues.some(v => /lane|shared|share_busway|opposite/.test(v))) return 'lane';
+
+  return 'road';
+}
+
+// ---------------------------------------------------------------------------
+// Split a BRouter track into contiguous safety stretches
+// ---------------------------------------------------------------------------
+
+/**
+ * BRouter's `messages` property is a table: header row, then one row per
+ * segment whose end point is (Longitude/1e6, Latitude/1e6) and whose
+ * WayTags describe the OSM way leading to it.
+ */
+function splitBySafety(coordinates, messages) {
+  const header = messages[0];
+  const iLon = header.indexOf('Longitude');
+  const iLat = header.indexOf('Latitude');
+  const iDist = header.indexOf('Distance');
+  const iTags = header.indexOf('WayTags');
+
+  const coordKey = c => `${Math.round(c[0] * 1e6)},${Math.round(c[1] * 1e6)}`;
+
+  const stretches = []; // { safety, coords, meters }
+  let cur = 0; // index into coordinates of current stretch start
+
+  for (const row of messages.slice(1)) {
+    const endKey = `${row[iLon]},${row[iLat]}`;
+    let end = cur;
+    while (end < coordinates.length - 1 && coordKey(coordinates[end]) !== endKey) end++;
+    if (end === cur) continue; // zero-length segment
+
+    const safety = classify(row[iTags]);
+    const meters = Number(row[iDist]) || 0;
+    const coords = coordinates.slice(cur, end + 1);
+
+    const prev = stretches[stretches.length - 1];
+    if (prev && prev.safety === safety) {
+      prev.coords.push(...coords.slice(1));
+      prev.meters += meters;
+    } else {
+      stretches.push({ safety, coords: [...coords], meters });
+    }
+    cur = end;
+  }
+
+  // Any trailing coordinates (shouldn't happen, but be safe)
+  if (cur < coordinates.length - 1 && stretches.length) {
+    stretches[stretches.length - 1].coords.push(...coordinates.slice(cur + 1));
+  }
+
+  return stretches;
+}
+
+// ---------------------------------------------------------------------------
+// Main
+// ---------------------------------------------------------------------------
+
 const root = path.resolve(import.meta.dirname, '..');
 const features = [];
 
@@ -87,31 +181,43 @@ for (const c of CORRIDORS) {
   const f = gj.features[0];
   const km = Math.round(Number(f.properties['track-length']) / 100) / 10;
   const minutes = Math.round((km / 18) * 60); // 18 km/h relaxed commuting pace
-  features.push({
-    type: 'Feature',
-    properties: {
-      id: c.id,
-      name_en: c.name_en,
-      name_fr: c.name_fr,
-      desc_en: c.desc_en,
-      desc_fr: c.desc_fr,
-      color: c.color,
-      distance_km: km,
-      minutes,
-    },
-    geometry: {
-      type: 'LineString',
-      // strip elevation, keep [lon, lat], 5-decimal precision (~1 m)
-      coordinates: f.geometry.coordinates.map(pt => [
-        Math.round(pt[0] * 1e5) / 1e5,
-        Math.round(pt[1] * 1e5) / 1e5,
-      ]),
-    },
-  });
-  console.log(`${km} km (~${minutes} min)`);
+
+  const stretches = splitBySafety(f.geometry.coordinates, f.properties.messages);
+  const carFreeMeters = stretches
+    .filter(s => s.safety === 'carfree')
+    .reduce((sum, s) => sum + s.meters, 0);
+  const carfreePct = Math.round((carFreeMeters / (km * 1000)) * 100);
+
+  for (const s of stretches) {
+    features.push({
+      type: 'Feature',
+      properties: {
+        id: c.id,
+        name_en: c.name_en,
+        name_fr: c.name_fr,
+        desc_en: c.desc_en,
+        desc_fr: c.desc_fr,
+        color: c.color,
+        distance_km: km,
+        minutes,
+        carfree_pct: carfreePct,
+        safety: s.safety,
+      },
+      geometry: {
+        type: 'LineString',
+        // strip elevation, keep [lon, lat], 5-decimal precision (~1 m)
+        coordinates: s.coords.map(pt => [
+          Math.round(pt[0] * 1e5) / 1e5,
+          Math.round(pt[1] * 1e5) / 1e5,
+        ]),
+      },
+    });
+  }
+
+  console.log(`${km} km (~${minutes} min), ${stretches.length} stretches, ${carfreePct}% car-free`);
   await new Promise(r => setTimeout(r, 1500)); // be polite to the public server
 }
 
 const out = { type: 'FeatureCollection', features };
 fs.writeFileSync(path.join(root, 'routes.geojson'), JSON.stringify(out));
-console.log(`Wrote routes.geojson (${features.length} routes)`);
+console.log(`Wrote routes.geojson (${features.length} features, ${CORRIDORS.length} routes)`);

@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bike Downtown Ottawa — CSAP Commuter Map</title>
+<meta name="description" content="Car-separated bike routes from Ottawa's suburbs to downtown. A Cycling Safety Awareness Program resource.">
+<link rel="stylesheet" href="vendor/maplibre-gl.css">
+<style>
+  :root {
+    --paper: #f5f3ef;
+    --ink: #2a2a2a;
+    --teal: #006458;
+    --teal-bright: #009e88;
+    --card: #ffffff;
+    --border: #e0dcd4;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  html, body { height: 100%; }
+  body {
+    font: 15px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif;
+    color: var(--ink);
+    background: var(--paper);
+    display: flex;
+    flex-direction: column;
+  }
+  header {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    flex-wrap: wrap;
+    padding: 10px 16px;
+    background: var(--card);
+    border-bottom: 2px solid var(--teal);
+  }
+  header h1 { font-size: 18px; color: var(--teal); }
+  header .tagline { font-size: 13px; color: #666; flex: 1; min-width: 200px; }
+  header .toggles { display: flex; gap: 8px; }
+  header button {
+    font: inherit; font-size: 13px;
+    padding: 3px 10px;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    background: var(--paper);
+    cursor: pointer;
+  }
+  header button[aria-pressed="true"] { background: var(--teal); color: #fff; border-color: var(--teal); }
+  #wrap { position: relative; flex: 1; min-height: 0; }
+  #map { position: absolute; inset: 0; }
+
+  #panel {
+    position: absolute;
+    top: 12px; left: 12px;
+    z-index: 5;
+    width: 300px;
+    max-height: calc(100% - 24px);
+    overflow-y: auto;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    box-shadow: 0 2px 10px rgba(0,0,0,.12);
+    padding: 12px 14px;
+  }
+  #panel h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: #777; margin-bottom: 8px; }
+  .route {
+    display: flex; align-items: center; gap: 10px;
+    width: 100%;
+    padding: 7px 8px;
+    border: 0; border-radius: 8px;
+    background: none;
+    font: inherit; text-align: left;
+    cursor: pointer;
+  }
+  .route:hover { background: var(--paper); }
+  .route.active { background: var(--paper); outline: 2px solid var(--teal-bright); }
+  .route .chip { flex: 0 0 22px; height: 6px; border-radius: 3px; }
+  .route .meta { font-size: 12px; color: #777; }
+  #showall {
+    margin-top: 8px; width: 100%;
+    font: inherit; font-size: 13px;
+    padding: 6px;
+    border: 1px dashed var(--border); border-radius: 8px;
+    background: none; color: #666; cursor: pointer;
+    display: none;
+  }
+  #showall.visible { display: block; }
+  .legend { margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--border); }
+  .legend div { display: flex; align-items: center; gap: 10px; font-size: 12.5px; color: #555; padding: 3px 0; }
+  .legend .swatch { flex: 0 0 22px; height: 0; }
+  .swatch.oasis { border-top: 3px solid var(--teal); }
+  .swatch.shared { border-top: 3px dashed var(--teal); }
+  .swatch.lane { border-top: 3px solid #3a8878; opacity: .55; }
+  footer {
+    padding: 6px 16px;
+    font-size: 11.5px; color: #888;
+    background: var(--card);
+    border-top: 1px solid var(--border);
+  }
+  footer a { color: var(--teal); }
+  #panel-toggle { display: none; }
+
+  @media (max-width: 700px) {
+    header h1 { font-size: 16px; }
+    header .tagline { display: none; }
+    #panel { width: min(300px, calc(100% - 24px)); display: none; }
+    #panel.open { display: block; }
+    #panel-toggle {
+      display: block;
+      position: absolute; top: 12px; left: 12px; z-index: 6;
+      font: inherit; font-size: 13px; font-weight: 600;
+      padding: 8px 14px;
+      border: 1px solid var(--border); border-radius: 20px;
+      background: var(--card); color: var(--teal);
+      box-shadow: 0 2px 8px rgba(0,0,0,.15);
+      cursor: pointer;
+    }
+    #panel.open ~ #panel-toggle { top: auto; bottom: 24px; left: 50%; transform: translateX(-50%); }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1 data-i18n="title"></h1>
+  <span class="tagline" data-i18n="tagline"></span>
+  <div class="toggles">
+    <button id="lang-toggle"></button>
+    <button id="hc-toggle" aria-pressed="false" data-i18n="highContrast"></button>
+  </div>
+</header>
+
+<div id="wrap">
+  <div id="map"></div>
+  <div id="panel">
+    <h2 data-i18n="routesHeading"></h2>
+    <div id="route-list"></div>
+    <button id="showall" data-i18n="showAll"></button>
+    <div class="legend">
+      <h2 data-i18n="legendHeading"></h2>
+      <div><span class="swatch oasis"></span><span data-i18n="legendOasis"></span></div>
+      <div><span class="swatch shared"></span><span data-i18n="legendShared"></span></div>
+      <div><span class="swatch lane"></span><span data-i18n="legendLane"></span></div>
+    </div>
+  </div>
+  <button id="panel-toggle" data-i18n="routesHeading"></button>
+</div>
+
+<footer data-i18n-html="credits"></footer>
+
+<script src="vendor/maplibre-gl.js"></script>
+<script>
+const I18N = {
+  en: {
+    title: 'Bike Downtown Ottawa',
+    tagline: 'Car-separated routes from the suburbs to downtown — Cycling Safety Awareness Program',
+    routesHeading: 'Commuter routes',
+    legendHeading: 'On the map',
+    legendOasis: 'Dedicated bike path (car-free)',
+    legendShared: 'Shared multi-use path or trail',
+    legendLane: 'On-road bike lane',
+    showAll: 'Show all routes',
+    minutes: 'min',
+    pace: 'at a relaxed pace',
+    langButton: 'FR',
+    highContrast: 'High contrast',
+    credits: 'A <strong>Cycling Safety Awareness Program</strong> resource by Envirocentre. ' +
+      'Map style adapted from <a href="https://github.com/eljojo/bike-app-astro">whereto.bike</a> (AGPL-3.0) · ' +
+      'Routing by <a href="https://brouter.de">BRouter</a> · ' +
+      'Data © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+  },
+  fr: {
+    title: 'À vélo vers le centre-ville d’Ottawa',
+    tagline: 'Trajets séparés des voitures, des banlieues au centre-ville — Programme de sensibilisation à la sécurité à vélo',
+    routesHeading: 'Trajets domicile-travail',
+    legendHeading: 'Sur la carte',
+    legendOasis: 'Piste cyclable réservée (sans voitures)',
+    legendShared: 'Sentier polyvalent partagé',
+    legendLane: 'Bande cyclable sur rue',
+    showAll: 'Afficher tous les trajets',
+    minutes: 'min',
+    pace: 'à un rythme détendu',
+    langButton: 'EN',
+    highContrast: 'Contraste élevé',
+    credits: 'Une ressource du <strong>Programme de sensibilisation à la sécurité à vélo</strong> d’Envirocentre. ' +
+      'Style de carte adapté de <a href="https://github.com/eljojo/bike-app-astro">whereto.bike</a> (AGPL-3.0) · ' +
+      'Itinéraires par <a href="https://brouter.de">BRouter</a> · ' +
+      'Données © les contributeurs d’<a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+  },
+};
+
+let lang = localStorage.getItem('csap-lang')
+  || (navigator.language && navigator.language.startsWith('fr') ? 'fr' : 'en');
+let highContrast = localStorage.getItem('csap-hc') === 'true';
+let selectedId = null;
+let routesData = null;
+const styles = {};
+
+function t(key) { return I18N[lang][key]; }
+
+function applyI18n() {
+  document.documentElement.lang = lang;
+  document.querySelectorAll('[data-i18n]').forEach(el => { el.textContent = t(el.dataset.i18n); });
+  document.querySelectorAll('[data-i18n-html]').forEach(el => { el.innerHTML = t(el.dataset.i18nHtml); });
+  document.getElementById('lang-toggle').textContent = t('langButton');
+  renderRouteList();
+}
+
+// ---------------------------------------------------------------------------
+// Map
+// ---------------------------------------------------------------------------
+const map = new maplibregl.Map({
+  container: 'map',
+  center: [-75.72, 45.38],
+  zoom: 10.4,
+  attributionControl: { compact: false },
+});
+map.addControl(new maplibregl.NavigationControl({ showCompass: false }));
+map.addControl(new maplibregl.GeolocateControl({ trackUserLocation: true }));
+
+async function loadStyle(key) {
+  if (!styles[key]) {
+    styles[key] = await (await fetch(`style-${key}.json`)).json();
+  }
+  return styles[key];
+}
+
+function overlayLayers() {
+  return [
+    {
+      id: 'commuter-casing',
+      type: 'line', source: 'commuter',
+      layout: { 'line-cap': 'round', 'line-join': 'round' },
+      paint: { 'line-color': '#ffffff', 'line-width': 8, 'line-opacity': 0.85 },
+    },
+    {
+      id: 'commuter-line',
+      type: 'line', source: 'commuter',
+      layout: { 'line-cap': 'round', 'line-join': 'round' },
+      paint: { 'line-color': ['get', 'color'], 'line-width': 4.5, 'line-opacity': 0.95 },
+    },
+  ];
+}
+
+function addOverlay() {
+  if (!routesData || map.getSource('commuter')) return;
+  map.addSource('commuter', { type: 'geojson', data: routesData });
+  overlayLayers().forEach(l => map.addLayer(l));
+  applySelection();
+}
+
+function applySelection() {
+  if (!map.getLayer('commuter-line')) return;
+  const dim = selectedId
+    ? ['case', ['==', ['get', 'id'], selectedId], 0.95, 0.12]
+    : 0.95;
+  const dimCasing = selectedId
+    ? ['case', ['==', ['get', 'id'], selectedId], 0.85, 0.06]
+    : 0.85;
+  const width = selectedId
+    ? ['case', ['==', ['get', 'id'], selectedId], 6, 3]
+    : 4.5;
+  map.setPaintProperty('commuter-line', 'line-opacity', dim);
+  map.setPaintProperty('commuter-line', 'line-width', width);
+  map.setPaintProperty('commuter-casing', 'line-opacity', dimCasing);
+  document.querySelectorAll('.route').forEach(el =>
+    el.classList.toggle('active', el.dataset.id === selectedId));
+  document.getElementById('showall').classList.toggle('visible', !!selectedId);
+}
+
+function featureBounds(feature) {
+  const b = new maplibregl.LngLatBounds();
+  feature.geometry.coordinates.forEach(c => b.extend(c));
+  return b;
+}
+
+function allBounds() {
+  const b = new maplibregl.LngLatBounds();
+  routesData.features.forEach(f => f.geometry.coordinates.forEach(c => b.extend(c)));
+  return b;
+}
+
+function selectRoute(id) {
+  selectedId = (selectedId === id) ? null : id;
+  applySelection();
+  if (selectedId) {
+    const f = routesData.features.find(f => f.properties.id === selectedId);
+    map.fitBounds(featureBounds(f), { padding: 70, duration: 800 });
+  } else {
+    map.fitBounds(allBounds(), { padding: 60, duration: 800 });
+  }
+}
+
+function renderRouteList() {
+  if (!routesData) return;
+  const list = document.getElementById('route-list');
+  list.innerHTML = '';
+  for (const f of routesData.features) {
+    const p = f.properties;
+    const btn = document.createElement('button');
+    btn.className = 'route' + (p.id === selectedId ? ' active' : '');
+    btn.dataset.id = p.id;
+    btn.innerHTML =
+      `<span class="chip" style="background:${p.color}"></span>` +
+      `<span><strong>${p['name_' + lang]}</strong><br>` +
+      `<span class="meta">${p.distance_km} km · ~${p.minutes} ${t('minutes')} ${t('pace')}</span></span>`;
+    btn.addEventListener('click', () => selectRoute(p.id));
+    list.appendChild(btn);
+  }
+}
+
+// Popups + cursor on route lines
+map.on('click', (e) => {
+  const hits = map.queryRenderedFeatures(e.point, { layers: ['commuter-line'] });
+  if (!hits.length) return;
+  const p = hits[0].properties;
+  new maplibregl.Popup({ closeButton: false, maxWidth: '260px' })
+    .setLngLat(e.lngLat)
+    .setHTML(
+      `<strong>${p['name_' + lang]}</strong><br>` +
+      `${p['desc_' + lang]}<br>` +
+      `<span style="color:#777">${p.distance_km} km · ~${p.minutes} ${t('minutes')} ${t('pace')}</span>`)
+    .addTo(map);
+});
+map.on('mousemove', (e) => {
+  const hits = map.queryRenderedFeatures(e.point, { layers: map.getLayer('commuter-line') ? ['commuter-line'] : [] });
+  map.getCanvas().style.cursor = hits.length ? 'pointer' : '';
+});
+
+// ---------------------------------------------------------------------------
+// Boot
+// ---------------------------------------------------------------------------
+async function setMapStyle() {
+  const style = await loadStyle(highContrast ? 'high-contrast' : 'default');
+  map.setStyle(style);
+}
+
+// Overlay is (re)added on every style.load — initial load and HC switches.
+map.on('style.load', addOverlay);
+window._map = map; // debugging hook
+
+(async function boot() {
+  applyI18n();
+  routesData = await fetch('routes.geojson').then(r => r.json());
+  renderRouteList();
+  await setMapStyle();
+  map.fitBounds(allBounds(), { padding: 60, duration: 0 });
+})();
+
+document.getElementById('lang-toggle').addEventListener('click', () => {
+  lang = lang === 'en' ? 'fr' : 'en';
+  localStorage.setItem('csap-lang', lang);
+  applyI18n();
+});
+
+const hcBtn = document.getElementById('hc-toggle');
+hcBtn.setAttribute('aria-pressed', String(highContrast));
+hcBtn.addEventListener('click', async () => {
+  highContrast = !highContrast;
+  localStorage.setItem('csap-hc', String(highContrast));
+  hcBtn.setAttribute('aria-pressed', String(highContrast));
+  await setMapStyle();
+});
+
+document.getElementById('showall').addEventListener('click', () => selectRoute(selectedId));
+
+document.getElementById('panel-toggle').addEventListener('click', () => {
+  document.getElementById('panel').classList.toggle('open');
+});
+</script>
+</body>
+</html>

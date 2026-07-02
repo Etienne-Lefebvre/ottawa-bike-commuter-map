@@ -57,10 +57,15 @@ const CORRIDORS = [
     id: 'barrhaven',
     name_en: 'Barrhaven → Downtown',
     name_fr: 'Barrhaven → Centre-ville',
-    desc_en: 'North to Hog’s Back, then the Rideau Canal Western Pathway',
-    desc_fr: 'Vers le nord jusqu’à Hog’s Back, puis le sentier ouest du canal Rideau',
+    desc_en: 'From Strandherd north to Hog’s Back, the canal pathway, and the Laurier bike lane',
+    desc_fr: 'De Strandherd vers le nord jusqu’à Hog’s Back, le sentier du canal et la bande cyclable Laurier',
     color: '#F58231',
-    points: [[-75.7359, 45.2733], [-75.6980, 45.3710], DOWNTOWN],
+    points: [
+      [-75.72704, 45.27536], // Strandherd Dr at Greenpointe Park
+      [-75.69559, 45.37148], // pathway underpass loop, east end of Hog's Back crossing
+      [-75.71165, 45.41760], // Bronson Park (Slater & Bronson)
+      [-75.69707, 45.41937], // end: Laurier Ave W & O'Connor St
+    ],
   },
   {
     id: 'south-keys',

@@ -62,8 +62,10 @@ const CORRIDORS = [
     color: '#F58231',
     points: [
       [-75.72704, 45.27536], // Strandherd Dr at Greenpointe Park
-      [-75.69559, 45.37148], // pathway underpass loop, east end of Hog's Back crossing
-      [-75.71165, 45.41760], // Bronson Park (Slater & Bronson)
+      [-75.70206, 45.37500], // strip pathway north of the Hog's Back locks underpass loop
+      [-75.71704, 45.41274], // Albert St corridor cycleway east of Bayview
+      [-75.70723, 45.41590], // path along Tech Wall Dog Park (Bronson/Slater to Laurier)
+      [-75.70510, 45.41599], // Laurier Ave separated cycle track
       [-75.69707, 45.41937], // end: Laurier Ave W & O'Connor St
     ],
   },

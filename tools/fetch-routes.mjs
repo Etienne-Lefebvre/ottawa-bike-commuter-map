@@ -23,71 +23,123 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-const DOWNTOWN = [-75.6994, 45.4215]; // Wellington St, near Parliament Hill
+const DOWNTOWN = [-75.696914, 45.419324]; // Laurier Ave W & O'Connor St
 
 const CORRIDORS = [
   {
     id: 'orleans',
-    name_en: 'Orléans → Downtown',
-    name_fr: 'Orléans → Centre-ville',
+    name_en: 'Orléans',
+    name_fr: 'Orléans',
     desc_en: 'Ottawa River Pathway east along the Sir George-Étienne Cartier Parkway',
     desc_fr: 'Sentier de la rivière des Outaouais, le long de la promenade Sir-George-Étienne-Cartier',
     color: '#E6194B',
-    points: [[-75.5205, 45.4782], [-75.6470, 45.4560], DOWNTOWN],
+    points: [
+      [-75.52033, 45.48423], // Champlain St at Jeanne d'Arc
+      [-75.63173, 45.46078], // left at the split to avoid gravel path
+      [-75.64002, 45.45753], // south of airport
+      [-75.64901, 45.45812], // west of airport
+      [-75.67229, 45.45716], // right before river house
+      [-75.69869, 45.42321], // Wellington and occonor
+      DOWNTOWN
+    ],
+  },
+  {
+    id: 'blackburn-hamlet',
+    name_en: 'Blackburn Hamlet',
+    name_fr: 'Blackburn Hamlet',
+    desc_en: 'From Blackburn Hamlet to downtown',
+    desc_fr: 'De Blackburn Hamlet jusqu’au centre-ville',
+    color: '#3CB44B',
+    points: [
+      [-75.56650, 45.43093], // start
+      [-75.66527, 45.41254], // Hurdman
+      DOWNTOWN,
+    ],
   },
   {
     id: 'kanata',
-    name_en: 'Kanata → Downtown',
-    name_fr: 'Kanata → Centre-ville',
+    name_en: 'Kanata North',
+    name_fr: 'Kanata Nord',
     desc_en: 'Watts Creek Pathway to the Ottawa River Pathway at Andrew Haydon Park',
     desc_fr: 'Sentier du ruisseau Watts jusqu’au sentier de la rivière des Outaouais au parc Andrew-Haydon',
     color: '#4363D8',
-    points: [[-75.9128, 45.3049], [-75.7995, 45.3552], DOWNTOWN],
+    points: [
+      [-75.91872, 45.32040], // Kanata ave
+      [-75.80812, 45.35641], // north east of Andrew Haydon park
+      DOWNTOWN
+    ],
   },
   {
     id: 'stittsville',
-    name_en: 'Stittsville → Downtown',
-    name_fr: 'Stittsville → Centre-ville',
+    name_en: 'Stittsville / Kanata South',
+    name_fr: 'Stittsville / Kanata Sud',
     desc_en: 'Trans Canada Trail through Bells Corners, joining the Watts Creek Pathway',
     desc_fr: 'Sentier transcanadien via Bells Corners, rejoignant le sentier du ruisseau Watts',
     color: '#911EB4',
-    points: [[-75.9250, 45.2585], [-75.8330, 45.3210], DOWNTOWN],
+    points: [[-75.9250, 45.2585], [-75.83670, 45.32471], DOWNTOWN],
+  },
+  {
+    id: 'nepean',
+    name_en: 'Nepean',
+    name_fr: 'Nepean',
+    desc_en: 'Through Nepean to downtown',
+    desc_fr: 'À travers Nepean jusqu’au centre-ville',
+    color: '#9A6324',
+    points: [
+      [-75.76896, 45.33831], // start
+      [-75.76486, 45.35831], // Iris
+      [-75.69895, 45.39787], // Madawaska
+      [-75.68704, 45.40186], // fifth
+      DOWNTOWN,
+    ],
   },
   {
     id: 'barrhaven',
-    name_en: 'Barrhaven → Downtown',
-    name_fr: 'Barrhaven → Centre-ville',
+    name_en: 'Barrhaven',
+    name_fr: 'Barrhaven',
     desc_en: 'From Strandherd north to Hog’s Back, the canal pathway, and the Laurier bike lane',
     desc_fr: 'De Strandherd vers le nord jusqu’à Hog’s Back, le sentier du canal et la bande cyclable Laurier',
     color: '#F58231',
     points: [
       [-75.72704, 45.27536], // Strandherd Dr at Greenpointe Park
       [-75.70206, 45.37500], // strip pathway north of the Hog's Back locks underpass loop
-      [-75.71704, 45.41274], // Albert St corridor cycleway east of Bayview
+      [-75.72176, 45.40992], // Albert St corridor cycleway east of Bayview
+      [-75.71399, 45.41252], // Albert St near booth
+      [-75.70911, 45.41520], // Slater St near new library
       [-75.70723, 45.41590], // path along Tech Wall Dog Park (Bronson/Slater to Laurier)
       [-75.70510, 45.41599], // Laurier Ave separated cycle track
-      [-75.69707, 45.41937], // end: Laurier Ave W & O'Connor St
+      DOWNTOWN,
     ],
   },
   {
     id: 'south-keys',
-    name_en: 'South Keys / Hunt Club → Downtown',
-    name_fr: 'South Keys / Hunt Club → Centre-ville',
+    name_en: 'South Keys / Hunt Club',
+    name_fr: 'South Keys / Hunt Club',
     desc_en: 'Sawmill Creek Pathway to the Rideau Canal Eastern Pathway',
     desc_fr: 'Sentier du ruisseau Sawmill jusqu’au sentier est du canal Rideau',
     color: '#F032E6',
-    points: [[-75.6478, 45.3524], [-75.6770, 45.3840], DOWNTOWN],
-  },
-  {
-    id: 'gatineau-hull',
-    name_en: 'Gatineau (Hull) → Downtown',
-    name_fr: 'Gatineau (Hull) → Centre-ville',
-    desc_en: 'Voyageurs Pathway along the river, crossing the Portage Bridge',
-    desc_fr: 'Sentier des Voyageurs le long de la rivière, traversée du pont du Portage',
-    color: '#3CB44B',
-    points: [[-75.7530, 45.4400], [-75.7080, 45.4230], DOWNTOWN],
+    points: [[-75.6478, 45.3524], [-75.67400, 45.38201], DOWNTOWN],
   },
 ];
+
+// ---------------------------------------------------------------------------
+// Manual geometry trims
+// ---------------------------------------------------------------------------
+// Some OSM crossings force the router into tiny overshoot knots (e.g. using
+// the far crosswalk and doubling back). Cosmetic only — drop any track
+// point that falls inside these boxes so the line turns cleanly.
+// bbox: [minLon, minLat, maxLon, maxLat]
+
+const MANUAL_TRIMS = {
+  // Wellington -> O'Connor left turn: skip the west-crosswalk overshoot
+  orleans: [[-75.7005, 45.4224, -75.6996, 45.4228]],
+};
+
+function applyTrims(coordinates, boxes) {
+  if (!boxes) return coordinates;
+  return coordinates.filter(([lon, lat]) =>
+    !boxes.some(([x1, y1, x2, y2]) => lon >= x1 && lon <= x2 && lat >= y1 && lat <= y2));
+}
 
 // ---------------------------------------------------------------------------
 // Safety classification from OSM way tags
@@ -137,14 +189,21 @@ function splitBySafety(coordinates, messages) {
 
   const coordKey = c => `${Math.round(c[0] * 1e6)},${Math.round(c[1] * 1e6)}`;
 
+  // All indices for each coordinate key (crossings can repeat a point)
+  const keyIndices = new Map();
+  coordinates.forEach((c, i) => {
+    const k = coordKey(c);
+    if (!keyIndices.has(k)) keyIndices.set(k, []);
+    keyIndices.get(k).push(i);
+  });
+
   const stretches = []; // { safety, coords, meters }
   let cur = 0; // index into coordinates of current stretch start
 
   for (const row of messages.slice(1)) {
     const endKey = `${row[iLon]},${row[iLat]}`;
-    let end = cur;
-    while (end < coordinates.length - 1 && coordKey(coordinates[end]) !== endKey) end++;
-    if (end === cur) continue; // zero-length segment
+    const end = keyIndices.get(endKey)?.find(i => i > cur);
+    if (end === undefined) continue; // endpoint trimmed away or zero-length
 
     const safety = classify(row[iTags]);
     const meters = Number(row[iDist]) || 0;
@@ -189,7 +248,8 @@ for (const c of CORRIDORS) {
   const km = Math.round(Number(f.properties['track-length']) / 100) / 10;
   const minutes = Math.round((km / 18) * 60); // 18 km/h relaxed commuting pace
 
-  const stretches = splitBySafety(f.geometry.coordinates, f.properties.messages);
+  const trimmed = applyTrims(f.geometry.coordinates, MANUAL_TRIMS[c.id]);
+  const stretches = splitBySafety(trimmed, f.properties.messages);
   const carFreeMeters = stretches
     .filter(s => s.safety === 'carfree')
     .reduce((sum, s) => sum + s.meters, 0);

@@ -84,7 +84,7 @@
     display: none;
   }
   #showall.visible { display: block; }
-  #safety-note { display: none; font-size: 12px; color: #777; margin-top: 8px; }
+  #safety-note { display: none; font-size: 12px; color: #666; margin-top: 8px; }
   #safety-note.visible { display: block; }
   .legend { margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--border); }
   .legend div { display: flex; align-items: center; gap: 10px; font-size: 12.5px; color: #555; padding: 3px 0; }
@@ -140,7 +140,7 @@
     <h2 data-i18n="routesHeading"></h2>
     <div id="route-list"></div>
     <button id="showall" data-i18n="showAll"></button>
-    <p id="safety-note" data-i18n="safetyNote"></p>
+    <p id="safety-note" data-i18n-html="safetyNote"></p>
     <div class="legend">
       <h2 data-i18n="legendHeading"></h2>
       <div><span class="swatch oasis"></span><span data-i18n="legendOasis"></span></div>
@@ -165,7 +165,7 @@ const I18N = {
     legendShared: 'Pedestrian priority pathway (car-free)',
     legendLane: 'On-street bike lane',
     showAll: 'Show all routes',
-    safetyNote: 'Line thickness shows how protected each section is: thick = car-free, thin = shared with car traffic.',
+    safetyNote: 'Line thickness shows how protected each section is: <strong>thick = car-free, thin = shared with car traffic</strong>.',
     carFree: 'car-free',
     sectionCarfree: 'Car-free section',
     sectionLane: 'On-street bike lane section',
@@ -188,7 +188,7 @@ const I18N = {
     legendShared: 'Sentier à priorité piétonne (sans voitures)',
     legendLane: 'Bande cyclable sur rue',
     showAll: 'Afficher tous les trajets',
-    safetyNote: 'L’épaisseur du trait indique le niveau de protection de chaque section : épais = sans voitures, mince = partagé avec la circulation automobile.',
+    safetyNote: 'L’épaisseur du trait indique le niveau de protection de chaque section : <strong>épais = sans voitures, mince = partagé avec la circulation automobile</strong>.',
     carFree: 'sans voitures',
     sectionCarfree: 'Section sans voitures',
     sectionLane: 'Section sur bande cyclable',

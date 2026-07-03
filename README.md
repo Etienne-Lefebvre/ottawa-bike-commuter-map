@@ -1,4 +1,4 @@
-# PROTOYPE/DRAFT Bike Downtown Ottawa. CSAP Commuter Map
+# PROTOTYPE/DRAFT Bike Downtown Ottawa. CSAP Commuter Map
 
 A simple standalone map highlighting **car-separated bike routes from Ottawa's
 suburbs to downtown**, built for the **Cycling Safety Awareness Program (CSAP)**

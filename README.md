@@ -1,4 +1,4 @@
-# Bike Downtown Ottawa — CSAP Commuter Map
+# PROTOYPE/DRAFT Bike Downtown Ottawa. CSAP Commuter Map
 
 A simple standalone map highlighting **car-separated bike routes from Ottawa's
 suburbs to downtown**, built for the **Cycling Safety Awareness Program (CSAP)**
@@ -6,22 +6,21 @@ administered by [Envirocentre](https://www.envirocentre.ca) on behalf of the
 City of Ottawa.
 
 The goal: show people who commute downtown by car that there is a safe,
-mostly car-free bike route from their neighbourhood — and roughly how long
+mostly car-free bike route from their neighbourhood and roughly how long
 it takes.
 
 ## What's on the map
 
-- **Six candidate commuter corridors** (Orléans, Kanata, Stittsville,
-  Barrhaven, South Keys/Hunt Club, Gatineau–Hull → downtown), routed along
+- **Seven candidate commuter corridors** (Orléans, Blackburn Hamlet, Kanata North, Stittsville,
+  Barrhaven, South Keys/Hunt Club, and Nepean), routed along
   the NCC multi-use pathway network wherever possible.
-- The **base map** highlights cycling infrastructure: solid teal = dedicated
-  car-free paths, dashed teal = shared multi-use paths and trails, muted =
-  on-road bike lanes. Car roads deliberately recede.
+- The **base map** highlights cycling infrastructure: solid teal = Protected bike lane or multi-use-pathway (car-free), dashed teal = Pedestrian priority pathway (car-free), muted =
+  On-street bike lane.
 - English/French toggle and a high-contrast accessible style variant.
 
 ## How it's built
 
-Everything is static — no server, no build step to deploy. Host the folder
+Everything is static, no server, no build step to deploy. Host the folder
 anywhere (GitHub Pages works out of the box via the included workflow).
 
 | File | What it is |

@@ -336,11 +336,17 @@ function renderRouteList() {
   }
 }
 
-// Popups + cursor on route lines
+// Click a route line: select it (like the side panel). Click the
+// already-selected route again for the section details popup.
 map.on('click', (e) => {
+  if (!map.getLayer('commuter-line')) return;
   const hits = map.queryRenderedFeatures(e.point, { layers: ['commuter-line'] });
   if (!hits.length) return;
   const p = hits[0].properties;
+  if (p.id !== selectedId) {
+    selectRoute(p.id);
+    return;
+  }
   const sectionLabel = {
     carfree: t('sectionCarfree'), lane: t('sectionLane'), road: t('sectionRoad'),
   }[p.safety] || '';

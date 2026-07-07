@@ -103,6 +103,20 @@
   .maplibregl-popup-content, .maplibregl-ctrl-attrib {
     font-family: Aptos, "Aptos Display", system-ui, -apple-system, "Segoe UI", sans-serif;
   }
+  /* Photo bubbles — round thumbnails pinned along a selected route */
+  .photo-bubble {
+    width: 48px; height: 48px;
+    border-radius: 50%;
+    border: 3px solid #fff;
+    box-shadow: 0 1px 6px rgba(0,0,0,.35);
+    background-size: cover;
+    background-position: center;
+    cursor: pointer;
+    padding: 0;
+  }
+  .photo-bubble:hover { border-color: var(--teal-bright); }
+  .photo-popup-img { display: block; width: 100%; border-radius: 6px; }
+  .photo-popup-caption { font-size: 12px; color: #555; margin-top: 6px; }
   #panel-toggle { display: none; }
 
   @media (max-width: 700px) {
@@ -289,6 +303,35 @@ function applySelection() {
     el.classList.toggle('active', el.dataset.id === selectedId));
   document.getElementById('showall').classList.toggle('visible', !!selectedId);
   document.getElementById('safety-note').classList.toggle('visible', !!selectedId);
+  updatePhotoBubbles();
+}
+
+// Photo bubbles — small round thumbnails showing what the infrastructure
+// looks like at that spot; visible only while their route is selected.
+let photosData = [];
+let photoMarkers = [];
+
+function updatePhotoBubbles() {
+  photoMarkers.forEach(m => m.remove());
+  photoMarkers = [];
+  if (!selectedId) return;
+  for (const ph of photosData.filter(p => p.route === selectedId)) {
+    const el = document.createElement('button');
+    el.className = 'photo-bubble';
+    el.style.backgroundImage = `url("${ph.src}")`;
+    el.setAttribute('aria-label', ph['caption_' + lang] || 'Photo');
+    el.addEventListener('click', (e) => {
+      e.stopPropagation();
+      new maplibregl.Popup({ closeButton: false, maxWidth: '300px' })
+        .setLngLat([ph.lon, ph.lat])
+        .setHTML(
+          `<img class="photo-popup-img" src="${ph.src}" alt="">` +
+          `<div class="photo-popup-caption">${ph['caption_' + lang] || ''}</div>`)
+        .addTo(map);
+    });
+    photoMarkers.push(
+      new maplibregl.Marker({ element: el }).setLngLat([ph.lon, ph.lat]).addTo(map));
+  }
 }
 
 function boundsForId(id) {
@@ -379,6 +422,7 @@ window._map = map; // debugging hook
 (async function boot() {
   applyI18n();
   routesData = await fetch('routes.geojson').then(r => r.json());
+  photosData = await fetch('photos.json').then(r => r.ok ? r.json() : []).catch(() => []);
   renderRouteList();
   await setMapStyle();
   map.fitBounds(allBounds(), { padding: 60, duration: 0 });

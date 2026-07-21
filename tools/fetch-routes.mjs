@@ -120,6 +120,42 @@ const CORRIDORS = [
     color: '#F032E6',
     points: [[-75.6478, 45.3524], [-75.67400, 45.38201], DOWNTOWN],
   },
+  {
+    id: 'findlay-creek',
+    name_en: 'Findlay Creek',
+    name_fr: 'Findlay Creek',
+    desc_en: 'From Findlay Creek to downtown',
+    desc_fr: 'De Findlay Creek jusqu’au centre-ville',
+    color: '#000075',
+    points: [
+      [-75.601977, 45.317435], // start
+      DOWNTOWN,
+    ],
+  },
+  {
+    id: 'elmvale-acres',
+    name_en: 'Elmvale Acres',
+    name_fr: 'Elmvale Acres',
+    desc_en: 'From Elmvale Acres to downtown',
+    desc_fr: 'D’Elmvale Acres jusqu’au centre-ville',
+    color: '#469990',
+    points: [
+      [-75.627150, 45.394982], // start
+      DOWNTOWN,
+    ],
+  },
+  {
+    id: 'aylmer',
+    name_en: 'Aylmer',
+    name_fr: 'Aylmer',
+    desc_en: 'From Aylmer to downtown',
+    desc_fr: 'D’Aylmer jusqu’au centre-ville',
+    color: '#808000',
+    points: [
+      [-75.842385, 45.391551], // start
+      DOWNTOWN,
+    ],
+  },
 ];
 
 // ---------------------------------------------------------------------------
